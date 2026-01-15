@@ -978,6 +978,8 @@
                     fetch(`https://finnhub.io/api/v1/stock/candle?symbol=SPY&resolution=D&from=${from}&to=${to}&token=${API_KEYS.finnhub}`).then(r => r.json())
                 ]);
 
+                console.log('Amgen data status:', amgenData.s, 'SP500 data status:', sp500Data.s);
+
                 if (amgenData.s === 'ok' && sp500Data.s === 'ok') {
                     historicalRiskData = {
                         amgen: amgenData,
@@ -985,10 +987,12 @@
                     };
                     console.log('Historical risk data loaded:', amgenData.c.length, 'days');
                 } else {
-                    console.error('Failed to fetch historical risk data');
+                    console.error('Failed to fetch historical risk data. Amgen status:', amgenData.s, 'SP500 status:', sp500Data.s);
+                    historicalRiskData.error = true;
                 }
             } catch (error) {
                 console.error('Error fetching historical risk data:', error);
+                historicalRiskData.error = true;
             }
         }
 
@@ -1536,6 +1540,11 @@
             const riskContainer = document.getElementById('riskMetrics');
 
             // Check if we have historical data
+            if (historicalRiskData.error) {
+                riskContainer.innerHTML = '<div class="error">Unable to load risk analytics. API rate limit may have been reached. Try refreshing in a few minutes.</div>';
+                return;
+            }
+
             if (!historicalRiskData.amgen || !historicalRiskData.sp500) {
                 riskContainer.innerHTML = '<div class="loading">Loading risk analytics...</div>';
                 return;
