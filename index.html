@@ -1,0 +1,1827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amgen Finance & Strategy Terminal</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background: #0a0e27;
+            color: #e0e6ed;
+            overflow-x: hidden;
+        }
+
+        .terminal-container {
+            max-width: 1920px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .terminal-header {
+            background: linear-gradient(135deg, #1a1f3a 0%, #2d3561 100%);
+            border-left: 4px solid #00d9ff;
+            padding: 20px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .terminal-title {
+            font-size: 1.8em;
+            color: #00d9ff;
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .terminal-subtitle {
+            color: #8b92a8;
+            font-size: 0.9em;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .header-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #2d3561;
+        }
+
+        .last-update {
+            color: #6c7a94;
+            font-size: 0.85em;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, #00d9ff 0%, #0099cc 100%);
+            color: #0a0e27;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9em;
+            transition: all 0.3s;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 217, 255, 0.4);
+        }
+
+        /* Market Overview Grid */
+        .market-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .market-card {
+            background: linear-gradient(135deg, #141937 0%, #1a1f3a 100%);
+            border: 1px solid #2d3561;
+            border-radius: 8px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .market-card:hover {
+            border-color: #00d9ff;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 217, 255, 0.2);
+        }
+
+        .market-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #00d9ff, #0099cc);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .market-card:hover::before {
+            opacity: 1;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .card-title {
+            font-size: 0.85em;
+            color: #8b92a8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .card-symbol {
+            font-size: 0.75em;
+            color: #6c7a94;
+            background: #0a0e27;
+            padding: 3px 8px;
+            border-radius: 3px;
+        }
+
+        .card-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: #e0e6ed;
+            margin-bottom: 8px;
+        }
+
+        .card-change {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 1em;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+
+        .positive {
+            color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .negative {
+            color: #ff4757;
+            background: rgba(255, 71, 87, 0.1);
+        }
+
+        .card-chart {
+            height: 60px;
+            margin-top: 15px;
+        }
+
+        /* Detailed View */
+        .detail-view {
+            display: none;
+            background: linear-gradient(135deg, #141937 0%, #1a1f3a 100%);
+            border: 1px solid #2d3561;
+            border-radius: 8px;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .detail-view.active {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #2d3561;
+        }
+
+        .detail-title {
+            font-size: 1.8em;
+            color: #00d9ff;
+        }
+
+        .back-btn {
+            background: #2d3561;
+            color: #e0e6ed;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            background: #3d4571;
+        }
+
+        .detail-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-item {
+            background: #0a0e27;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 3px solid #00d9ff;
+        }
+
+        .stat-label {
+            font-size: 0.8em;
+            color: #8b92a8;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 1.3em;
+            color: #e0e6ed;
+            font-weight: 600;
+        }
+
+        .detail-chart {
+            height: 400px;
+            background: #0a0e27;
+            border-radius: 6px;
+            padding: 20px;
+        }
+
+        /* News Section */
+        .news-section {
+            background: linear-gradient(135deg, #141937 0%, #1a1f3a 100%);
+            border: 1px solid #2d3561;
+            border-radius: 8px;
+            padding: 30px;
+        }
+
+        .section-title {
+            font-size: 1.4em;
+            color: #00d9ff;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #2d3561;
+        }
+
+        .news-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 15px;
+        }
+
+        .news-item {
+            background: #0a0e27;
+            border: 1px solid #2d3561;
+            padding: 20px;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+
+        .news-item:hover {
+            border-color: #00d9ff;
+            transform: translateX(5px);
+        }
+
+        .news-meta {
+            font-size: 0.75em;
+            color: #6c7a94;
+            margin-bottom: 10px;
+        }
+
+        .news-title {
+            font-size: 1em;
+            color: #e0e6ed;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        .news-title a {
+            color: #e0e6ed;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .news-title a:hover {
+            color: #00d9ff;
+        }
+
+        .news-description {
+            font-size: 0.85em;
+            color: #8b92a8;
+            line-height: 1.6;
+        }
+
+        .loading {
+            color: #6c7a94;
+            text-align: center;
+            padding: 40px;
+            font-style: italic;
+        }
+
+        .error {
+            color: #ff4757;
+            background: rgba(255, 71, 87, 0.1);
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        /* Time Period Selector */
+        .time-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .time-btn {
+            background: #2d3561;
+            color: #8b92a8;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.3s;
+        }
+
+        .time-btn:hover {
+            background: #3d4571;
+            color: #e0e6ed;
+        }
+
+        .time-btn.active {
+            background: #00d9ff;
+            color: #0a0e27;
+        }
+
+        .overview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #2d3561;
+        }
+
+        .overview-title {
+            font-size: 1.4em;
+            color: #00d9ff;
+        }
+
+        /* Economic Calendar */
+        .calendar-section {
+            background: linear-gradient(135deg, #141937 0%, #1a1f3a 100%);
+            border: 1px solid #2d3561;
+            border-radius: 8px;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+
+        .calendar-event {
+            background: #0a0e27;
+            border-left: 4px solid #00d9ff;
+            padding: 15px;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+
+        .calendar-event:hover {
+            transform: translateX(5px);
+            border-left-color: #00ff88;
+        }
+
+        .event-date {
+            font-size: 0.75em;
+            color: #00d9ff;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .event-title {
+            font-size: 1em;
+            color: #e0e6ed;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .event-description {
+            font-size: 0.85em;
+            color: #8b92a8;
+            line-height: 1.4;
+        }
+
+        .event-type {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.7em;
+            margin-top: 8px;
+            font-weight: 600;
+        }
+
+        .event-fda {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+        }
+
+        .event-earnings {
+            background: rgba(0, 217, 255, 0.2);
+            color: #00d9ff;
+        }
+
+        .event-economic {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+        }
+
+        /* Risk Metrics */
+        .risk-section {
+            background: linear-gradient(135deg, #141937 0%, #1a1f3a 100%);
+            border: 1px solid #2d3561;
+            border-radius: 8px;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .risk-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .risk-card {
+            background: #0a0e27;
+            padding: 20px;
+            border-radius: 6px;
+            border-top: 3px solid #00d9ff;
+        }
+
+        .risk-label {
+            font-size: 0.8em;
+            color: #8b92a8;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .risk-value {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #e0e6ed;
+            margin-bottom: 5px;
+        }
+
+        .risk-description {
+            font-size: 0.75em;
+            color: #6c7a94;
+            line-height: 1.4;
+        }
+
+        /* Technical Indicators */
+        .indicator-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .indicator-btn {
+            background: #2d3561;
+            color: #8b92a8;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.3s;
+        }
+
+        .indicator-btn:hover {
+            background: #3d4571;
+            color: #e0e6ed;
+        }
+
+        .indicator-btn.active {
+            background: #00d9ff;
+            color: #0a0e27;
+        }
+
+        /* Export Buttons */
+        .export-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .export-btn {
+            background: #2d3561;
+            color: #e0e6ed;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .export-btn:hover {
+            background: #00d9ff;
+            color: #0a0e27;
+        }
+
+        /* Scenario Analysis */
+        .scenario-section {
+            background: linear-gradient(135deg, #141937 0%, #1a1f3a 100%);
+            border: 1px solid #2d3561;
+            border-radius: 8px;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .scenario-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .scenario-input {
+            background: #0a0e27;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #2d3561;
+        }
+
+        .scenario-input label {
+            display: block;
+            font-size: 0.85em;
+            color: #8b92a8;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .scenario-input input,
+        .scenario-input select {
+            width: 100%;
+            background: #1a1f3a;
+            border: 1px solid #2d3561;
+            color: #e0e6ed;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.95em;
+        }
+
+        .scenario-input input:focus,
+        .scenario-input select:focus {
+            outline: none;
+            border-color: #00d9ff;
+        }
+
+        .scenario-results {
+            background: #0a0e27;
+            padding: 20px;
+            border-radius: 6px;
+            margin-top: 20px;
+        }
+
+        .scenario-result-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #2d3561;
+        }
+
+        .scenario-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .run-scenario-btn {
+            background: linear-gradient(135deg, #00d9ff 0%, #0099cc 100%);
+            color: #0a0e27;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1em;
+            transition: all 0.3s;
+            margin-top: 15px;
+        }
+
+        .run-scenario-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 217, 255, 0.4);
+        }
+
+        /* Volume Chart */
+        .volume-chart {
+            height: 100px;
+            margin-top: 20px;
+            background: #0a0e27;
+            border-radius: 6px;
+            padding: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal-container">
+        <!-- Header -->
+        <div class="terminal-header">
+            <div class="terminal-title">AMGEN FINANCE & STRATEGY TERMINAL</div>
+            <div class="terminal-subtitle">Real-time Market Intelligence & Biotech Sector Analysis</div>
+            <div class="header-info">
+                <div class="last-update">LAST UPDATE: <span id="lastUpdate">LOADING...</span></div>
+                <button class="refresh-btn" onclick="refreshDashboard()">⟳ REFRESH DATA</button>
+            </div>
+        </div>
+
+        <!-- Main View -->
+        <div id="mainView">
+            <!-- Market Grid -->
+            <div class="market-grid" id="marketGrid">
+                <!-- Cards will be dynamically generated -->
+            </div>
+
+            <!-- Economic Calendar -->
+            <div class="calendar-section">
+                <div class="overview-header">
+                    <div class="overview-title">UPCOMING EVENTS & CALENDAR</div>
+                </div>
+                <div class="calendar-grid" id="calendarContainer">
+                    <!-- Events will be dynamically generated -->
+                </div>
+            </div>
+
+            <!-- Risk Metrics -->
+            <div class="risk-section">
+                <div class="overview-header">
+                    <div class="overview-title">RISK ANALYTICS DASHBOARD</div>
+                </div>
+                <div class="risk-grid" id="riskMetrics">
+                    <!-- Risk cards will be dynamically generated -->
+                </div>
+            </div>
+
+            <!-- Scenario Analysis -->
+            <div class="scenario-section">
+                <div class="overview-header">
+                    <div class="overview-title">SCENARIO ANALYSIS</div>
+                </div>
+                <div class="scenario-controls">
+                    <div class="scenario-input">
+                        <label>Market Variable</label>
+                        <select id="scenarioVariable">
+                            <option value="oil">Oil Price Change</option>
+                            <option value="biotech">Biotech Index Change</option>
+                            <option value="interest">Interest Rate Change</option>
+                            <option value="usd">USD Strength Change</option>
+                        </select>
+                    </div>
+                    <div class="scenario-input">
+                        <label>Change Percentage</label>
+                        <input type="number" id="scenarioPercent" value="10" step="1" placeholder="e.g., 10 for +10%">
+                    </div>
+                    <div class="scenario-input">
+                        <label>Impact on Amgen</label>
+                        <input type="number" id="scenarioCorrelation" value="0.5" step="0.1" min="-1" max="1" placeholder="Correlation (-1 to 1)">
+                    </div>
+                </div>
+                <button class="run-scenario-btn" onclick="runScenario()">RUN SCENARIO ANALYSIS</button>
+                <div class="scenario-results" id="scenarioResults" style="display: none;">
+                    <!-- Results will be generated here -->
+                </div>
+            </div>
+
+            <!-- News Section -->
+            <div class="news-section">
+                <div class="section-title">BIOTECH SECTOR NEWS</div>
+                <div class="news-grid" id="newsContainer">
+                    <div class="loading">Loading latest biotech industry news...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detail View -->
+        <div id="detailView" class="detail-view">
+            <div class="detail-header">
+                <div class="detail-title" id="detailTitle"></div>
+                <div class="export-controls">
+                    <button class="export-btn" onclick="exportChartImage()">📸 Export Image</button>
+                    <button class="export-btn" onclick="exportCSV()">📊 Export CSV</button>
+                    <button class="export-btn" onclick="exportPDF()">📄 Export PDF</button>
+                    <button class="back-btn" onclick="closeDetailView()">← BACK TO OVERVIEW</button>
+                </div>
+            </div>
+
+            <div class="time-selector">
+                <button class="time-btn active" onclick="changeTimePeriod('1D')">1D</button>
+                <button class="time-btn" onclick="changeTimePeriod('5D')">5D</button>
+                <button class="time-btn" onclick="changeTimePeriod('1M')">1M</button>
+                <button class="time-btn" onclick="changeTimePeriod('3M')">3M</button>
+                <button class="time-btn" onclick="changeTimePeriod('1Y')">1Y</button>
+                <button class="time-btn" onclick="changeTimePeriod('5Y')">5Y</button>
+            </div>
+
+            <div class="indicator-controls">
+                <button class="indicator-btn" id="smaBtn" onclick="toggleIndicator('sma')">SMA (50)</button>
+                <button class="indicator-btn" id="emaBtn" onclick="toggleIndicator('ema')">EMA (20)</button>
+                <button class="indicator-btn" id="bbBtn" onclick="toggleIndicator('bb')">Bollinger Bands</button>
+                <button class="indicator-btn" id="rsiBtn" onclick="toggleIndicator('rsi')">RSI</button>
+                <button class="indicator-btn" id="macdBtn" onclick="toggleIndicator('macd')">MACD</button>
+            </div>
+
+            <div class="detail-stats" id="detailStats"></div>
+
+            <div class="detail-chart">
+                <canvas id="detailChartCanvas"></canvas>
+            </div>
+
+            <div class="volume-chart">
+                <canvas id="volumeChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // API CONFIGURATION
+        // ============================================
+        const API_KEYS = {
+            finnhub: 'd5ihqkhr01qo1lb256vgd5ihqkhr01qo1lb25700',
+            newsapi: 'b6d6f4fff7cb42e7afc88a83049c6be6'
+        };
+
+        // ============================================
+        // MARKET CONFIGURATION
+        // ============================================
+        const MARKETS = {
+            sp500: { name: 'S&P 500', symbol: 'SPY', icon: '📈', type: 'ETF' },
+            nasdaq: { name: 'NASDAQ', symbol: 'QQQ', icon: '💻', type: 'ETF' },
+            dow: { name: 'Dow Jones', symbol: 'DIA', icon: '🏭', type: 'ETF' },
+            biotech: { name: 'NASDAQ Biotech', symbol: 'IBB', icon: '🧬', type: 'ETF' },
+            amgen: { name: 'Amgen', symbol: 'AMGN', icon: '💊', type: 'Stock' },
+            healthcare: { name: 'Healthcare Sector', symbol: 'XLV', icon: '🏥', type: 'ETF' },
+            wti: { name: 'WTI Crude Oil', symbol: 'USO', icon: '🛢️', type: 'Commodity' },
+            brent: { name: 'Brent Crude', symbol: 'BNO', icon: '⚫', type: 'Commodity' }
+        };
+
+        let currentDetailSymbol = null;
+        let currentTimePeriod = '1D';
+        let detailChart = null;
+        let sparklineCharts = {};
+        let volumeChart = null;
+        let marketData = {}; // Store market data
+        let currentChartData = null; // Store current chart data for indicators
+        let activeIndicators = new Set(); // Track active indicators
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        function initializeDashboard() {
+            generateMarketCards();
+            refreshDashboard();
+        }
+
+        function generateMarketCards() {
+            const grid = document.getElementById('marketGrid');
+            grid.innerHTML = '';
+
+            Object.entries(MARKETS).forEach(([key, market]) => {
+                const card = document.createElement('div');
+                card.className = 'market-card';
+                card.onclick = () => openDetailView(key);
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div class="card-title">${market.icon} ${market.name}</div>
+                        <div class="card-symbol">${market.symbol}</div>
+                    </div>
+                    <div class="card-value" id="${key}-value">--</div>
+                    <div class="card-change" id="${key}-change">--</div>
+                    <canvas class="card-chart" id="${key}-chart"></canvas>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function updateTimestamp() {
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = now.toLocaleString().toUpperCase();
+        }
+
+        function refreshDashboard() {
+            updateTimestamp();
+            fetchAllMarketData();
+            fetchBiotechNews();
+            loadEconomicCalendar();
+            loadRiskMetrics();
+        }
+
+        // ============================================
+        // MARKET DATA FUNCTIONS
+        // ============================================
+        async function fetchAllMarketData() {
+            const promises = Object.entries(MARKETS).map(([key, market]) =>
+                fetchStockQuote(market.symbol, key)
+            );
+            await Promise.all(promises);
+        }
+
+        async function fetchStockQuote(symbol, key) {
+            try {
+                const response = await fetch(
+                    `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${API_KEYS.finnhub}`
+                );
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                const data = await response.json();
+
+                if (data.c && data.c > 0) {
+                    // Store data for overview chart
+                    marketData[key] = {
+                        price: data.c,
+                        change: data.d || 0,
+                        changePercent: data.dp || 0,
+                        name: MARKETS[key].name,
+                        symbol: symbol
+                    };
+
+                    updateMarketCard(key, data.c, data.d || 0, data.dp || 0);
+                    await fetchSparklineData(symbol, key);
+                }
+            } catch (error) {
+                console.error(`Error fetching ${symbol}:`, error);
+                document.getElementById(`${key}-value`).textContent = 'ERROR';
+                document.getElementById(`${key}-value`).classList.add('error');
+            }
+        }
+
+        function updateMarketCard(key, price, change, changePercent) {
+            const valueEl = document.getElementById(`${key}-value`);
+            const changeEl = document.getElementById(`${key}-change`);
+
+            if (valueEl && changeEl) {
+                valueEl.textContent = formatPrice(price);
+                const sign = change >= 0 ? '+' : '';
+                changeEl.textContent = `${sign}${formatPrice(change)} (${sign}${changePercent.toFixed(2)}%)`;
+                changeEl.className = `card-change ${change >= 0 ? 'positive' : 'negative'}`;
+            }
+        }
+
+        async function fetchSparklineData(symbol, key) {
+            try {
+                const to = Math.floor(Date.now() / 1000);
+                const from = to - (24 * 60 * 60);
+
+                const response = await fetch(
+                    `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=60&from=${from}&to=${to}&token=${API_KEYS.finnhub}`
+                );
+
+                const data = await response.json();
+
+                console.log(`Sparkline data for ${symbol}:`, data.s, data.c ? data.c.length : 0);
+
+                if (data.s === 'ok' && data.c && data.c.length > 0) {
+                    createSparkline(key, data.c);
+                } else {
+                    console.warn(`No sparkline data for ${symbol}`);
+                }
+            } catch (error) {
+                console.error(`Error fetching sparkline for ${symbol}:`, error);
+            }
+        }
+
+        function createSparkline(key, data) {
+            const canvas = document.getElementById(`${key}-chart`);
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+
+            if (sparklineCharts[key]) {
+                sparklineCharts[key].destroy();
+            }
+
+            const isPositive = data[data.length - 1] >= data[0];
+
+            sparklineCharts[key] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map((_, i) => i),
+                    datasets: [{
+                        data: data,
+                        borderColor: isPositive ? '#00ff88' : '#ff4757',
+                        borderWidth: 2,
+                        fill: true,
+                        backgroundColor: isPositive
+                            ? 'rgba(0, 255, 136, 0.1)'
+                            : 'rgba(255, 71, 87, 0.1)',
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    },
+                    scales: {
+                        x: { display: false },
+                        y: { display: false }
+                    },
+                    interaction: { mode: null }
+                }
+            });
+        }
+
+        // ============================================
+        // DETAIL VIEW FUNCTIONS
+        // ============================================
+        async function openDetailView(key) {
+            currentDetailSymbol = key;
+            const market = MARKETS[key];
+
+            document.getElementById('detailTitle').textContent =
+                `${market.icon} ${market.name} (${market.symbol})`;
+
+            document.getElementById('mainView').style.display = 'none';
+            document.getElementById('detailView').classList.add('active');
+
+            await loadDetailedData(market.symbol, key);
+        }
+
+        function closeDetailView() {
+            document.getElementById('detailView').classList.remove('active');
+            document.getElementById('mainView').style.display = 'block';
+            currentDetailSymbol = null;
+        }
+
+        async function changeTimePeriod(period) {
+            currentTimePeriod = period;
+
+            document.querySelectorAll('.time-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            if (currentDetailSymbol) {
+                const market = MARKETS[currentDetailSymbol];
+                await loadDetailedData(market.symbol, currentDetailSymbol);
+            }
+        }
+
+        async function loadDetailedData(symbol, key) {
+            const { from, to, resolution } = getTimeRange(currentTimePeriod);
+
+            console.log(`Loading detailed data for ${symbol}:`, { from, to, resolution, period: currentTimePeriod });
+
+            // Show loading state
+            document.getElementById('detailStats').innerHTML = '<div class="loading">Loading statistics...</div>';
+
+            try {
+                const url = `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=${resolution}&from=${from}&to=${to}&token=${API_KEYS.finnhub}`;
+                console.log('Fetching candle data from:', url);
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                console.log('Candle API Response:', data);
+
+                if (data.s === 'ok' && data.c && data.c.length > 0) {
+                    console.log(`Received ${data.c.length} data points`);
+                    currentChartData = data; // Store for indicators and export
+                    updateDetailStats(data);
+                    createDetailChart(data);
+                    createVolumeChart(data);
+                } else if (data.s === 'no_data') {
+                    console.warn('No data available for this time period');
+                    document.getElementById('detailStats').innerHTML =
+                        '<div class="error">No historical data available for this time period. Try a different date range.</div>';
+                } else {
+                    console.error('Unexpected API response:', data);
+                    document.getElementById('detailStats').innerHTML =
+                        '<div class="error">Unable to load historical data. The API may have rate limits or the symbol may not support this time range.</div>';
+                }
+            } catch (error) {
+                console.error(`Error loading detailed data for ${symbol}:`, error);
+                document.getElementById('detailStats').innerHTML =
+                    '<div class="error">Failed to load data. Please check your internet connection and try again.</div>';
+            }
+        }
+
+        function getTimeRange(period) {
+            const now = Math.floor(Date.now() / 1000);
+            let from, resolution;
+
+            switch(period) {
+                case '1D':
+                    from = now - (24 * 60 * 60);
+                    resolution = '5';
+                    break;
+                case '5D':
+                    from = now - (5 * 24 * 60 * 60);
+                    resolution = '30';
+                    break;
+                case '1M':
+                    from = now - (30 * 24 * 60 * 60);
+                    resolution = '60';
+                    break;
+                case '3M':
+                    from = now - (90 * 24 * 60 * 60);
+                    resolution = 'D';
+                    break;
+                case '1Y':
+                    from = now - (365 * 24 * 60 * 60);
+                    resolution = 'D';
+                    break;
+                case '5Y':
+                    from = now - (5 * 365 * 24 * 60 * 60);
+                    resolution = 'W';
+                    break;
+                default:
+                    from = now - (24 * 60 * 60);
+                    resolution = '5';
+            }
+
+            return { from, to: now, resolution };
+        }
+
+        function updateDetailStats(data) {
+            const open = data.o[0];
+            const close = data.c[data.c.length - 1];
+            const high = Math.max(...data.h);
+            const low = Math.min(...data.l);
+            const change = close - open;
+            const changePercent = (change / open) * 100;
+
+            const statsHTML = `
+                <div class="stat-item">
+                    <div class="stat-label">Open</div>
+                    <div class="stat-value">${formatPrice(open)}</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Close</div>
+                    <div class="stat-value">${formatPrice(close)}</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">High</div>
+                    <div class="stat-value">${formatPrice(high)}</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Low</div>
+                    <div class="stat-value">${formatPrice(low)}</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Change</div>
+                    <div class="stat-value" style="color: ${change >= 0 ? '#00ff88' : '#ff4757'}">
+                        ${change >= 0 ? '+' : ''}${formatPrice(change)}
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Change %</div>
+                    <div class="stat-value" style="color: ${changePercent >= 0 ? '#00ff88' : '#ff4757'}">
+                        ${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('detailStats').innerHTML = statsHTML;
+        }
+
+        function createDetailChart(data) {
+            const canvas = document.getElementById('detailChartCanvas');
+            if (!canvas) {
+                console.error('Detail chart canvas not found');
+                return;
+            }
+
+            const ctx = canvas.getContext('2d');
+
+            if (detailChart) {
+                detailChart.destroy();
+            }
+
+            if (!data || !data.t || !data.c || data.c.length === 0) {
+                console.error('Invalid chart data:', data);
+                return;
+            }
+
+            console.log('Creating detail chart with', data.c.length, 'data points');
+
+            const labels = data.t.map(timestamp => {
+                const date = new Date(timestamp * 1000);
+                if (currentTimePeriod === '1D' || currentTimePeriod === '5D') {
+                    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                } else {
+                    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+                }
+            });
+
+            const isPositive = data.c[data.c.length - 1] >= data.o[0];
+
+            // Prepare datasets
+            const datasets = [{
+                label: 'Price',
+                data: data.c,
+                borderColor: isPositive ? '#00ff88' : '#ff4757',
+                backgroundColor: isPositive
+                    ? 'rgba(0, 255, 136, 0.1)'
+                    : 'rgba(255, 71, 87, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.1,
+                pointRadius: 0,
+                pointHoverRadius: 6,
+                pointHoverBackgroundColor: isPositive ? '#00ff88' : '#ff4757',
+                pointHoverBorderColor: '#0a0e27',
+                pointHoverBorderWidth: 2,
+                order: 1
+            }];
+
+            // Add technical indicators if active
+            if (activeIndicators.has('sma')) {
+                const sma = calculateSMA(data.c, 50);
+                datasets.push({
+                    label: 'SMA (50)',
+                    data: sma,
+                    borderColor: '#ffc107',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.1,
+                    pointRadius: 0,
+                    order: 2
+                });
+            }
+
+            if (activeIndicators.has('ema')) {
+                const ema = calculateEMA(data.c, 20);
+                datasets.push({
+                    label: 'EMA (20)',
+                    data: ema,
+                    borderColor: '#00d9ff',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.1,
+                    pointRadius: 0,
+                    order: 2
+                });
+            }
+
+            if (activeIndicators.has('bb')) {
+                const bb = calculateBollingerBands(data.c, 20, 2);
+                datasets.push({
+                    label: 'BB Upper',
+                    data: bb.upper,
+                    borderColor: 'rgba(156, 39, 176, 0.5)',
+                    borderWidth: 1,
+                    fill: false,
+                    pointRadius: 0,
+                    order: 3
+                });
+                datasets.push({
+                    label: 'BB SMA',
+                    data: bb.sma,
+                    borderColor: 'rgba(156, 39, 176, 0.7)',
+                    borderWidth: 1,
+                    fill: false,
+                    pointRadius: 0,
+                    order: 3
+                });
+                datasets.push({
+                    label: 'BB Lower',
+                    data: bb.lower,
+                    borderColor: 'rgba(156, 39, 176, 0.5)',
+                    borderWidth: 1,
+                    fill: '+1',
+                    backgroundColor: 'rgba(156, 39, 176, 0.1)',
+                    pointRadius: 0,
+                    order: 3
+                });
+            }
+
+            detailChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1a1f3a',
+                            titleColor: '#00d9ff',
+                            bodyColor: '#e0e6ed',
+                            borderColor: '#2d3561',
+                            borderWidth: 1,
+                            padding: 12,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Price: ' + formatPrice(context.parsed.y);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: '#2d3561',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#8b92a8',
+                                maxTicksLimit: 10
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: '#2d3561',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#8b92a8',
+                                callback: function(value) {
+                                    return formatPrice(value);
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            });
+
+            console.log('Detail chart created successfully');
+        }
+
+        // ============================================
+        // NEWS FUNCTIONS
+        // ============================================
+        async function fetchBiotechNews() {
+            const newsContainer = document.getElementById('newsContainer');
+
+            try {
+                const response = await fetch(
+                    `https://newsapi.org/v2/everything?q=(biotech OR biotechnology OR pharmaceutical OR "drug development" OR FDA OR "clinical trial")&language=en&sortBy=publishedAt&pageSize=12&apiKey=${API_KEYS.newsapi}`
+                );
+
+                console.log('News API Response Status:', response.status);
+
+                if (!response.ok) {
+                    console.error('News API error:', response.status);
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('News API Data:', data);
+
+                if (data.articles && data.articles.length > 0) {
+                    displayNews(data.articles);
+                } else {
+                    console.warn('No articles in response, using demo news');
+                    displayDemoNews();
+                }
+            } catch (error) {
+                console.error('Error fetching news:', error);
+                console.log('Using demo news due to error');
+                displayDemoNews();
+            }
+        }
+
+        function displayDemoNews() {
+            const demoArticles = [
+                {
+                    source: { name: 'BioPharma Dive' },
+                    publishedAt: new Date().toISOString(),
+                    title: 'FDA Approves Novel Gene Therapy for Rare Disease Treatment',
+                    description: 'The FDA has granted accelerated approval for a breakthrough gene therapy targeting a rare genetic disorder, marking significant progress in precision medicine.',
+                    url: 'https://www.biopharmadive.com'
+                },
+                {
+                    source: { name: 'FierceBiotech' },
+                    publishedAt: new Date().toISOString(),
+                    title: 'Major Pharma Companies Increase Investment in Obesity Drug Research',
+                    description: 'Leading pharmaceutical firms announce expanded budgets for metabolic disease research following successful GLP-1 receptor agonist launches.',
+                    url: 'https://www.fiercebiotech.com'
+                },
+                {
+                    source: { name: 'Endpoints News' },
+                    publishedAt: new Date().toISOString(),
+                    title: 'Biotech M&A Activity Reaches Record Levels in Q4 2025',
+                    description: 'Merger and acquisition activity in the biotechnology sector hits new highs as larger firms seek innovative pipeline assets.',
+                    url: 'https://endpts.com'
+                },
+                {
+                    source: { name: 'Nature Biotechnology' },
+                    publishedAt: new Date().toISOString(),
+                    title: 'CRISPR Technology Advances with Improved Base Editing Precision',
+                    description: 'Researchers announce breakthrough in gene editing accuracy, potentially reducing off-target effects in therapeutic applications.',
+                    url: 'https://www.nature.com/nbt/'
+                },
+                {
+                    source: { name: 'STAT News' },
+                    publishedAt: new Date().toISOString(),
+                    title: 'Biosimilars Market Expected to Exceed $100B by 2026',
+                    description: 'Analysis predicts significant growth in biosimilar adoption as major biologic patents expire and healthcare systems seek cost savings.',
+                    url: 'https://www.statnews.com'
+                },
+                {
+                    source: { name: 'BioPharma Dive' },
+                    publishedAt: new Date().toISOString(),
+                    title: 'AI-Powered Drug Discovery Platforms Secure Major Funding Rounds',
+                    description: 'Artificial intelligence companies focused on pharmaceutical R&D attract significant investments from venture capital and big pharma partnerships.',
+                    url: 'https://www.biopharmadive.com'
+                },
+                {
+                    source: { name: 'FierceBiotech' },
+                    publishedAt: new Date().toISOString(),
+                    title: 'CAR-T Cell Therapy Shows Promise in Solid Tumor Treatment',
+                    description: 'Next-generation cellular immunotherapy demonstrates encouraging results in clinical trials for previously untreatable solid tumors.',
+                    url: 'https://www.fiercebiotech.com'
+                },
+                {
+                    source: { name: 'Endpoints News' },
+                    publishedAt: new Date().toISOString(),
+                    title: 'mRNA Technology Expands Beyond Vaccines into Cancer Treatment',
+                    description: 'Companies pioneering mRNA platforms report promising early-stage results in oncology applications and personalized medicine.',
+                    url: 'https://endpts.com'
+                },
+                {
+                    source: { name: 'BioPharma Dive' },
+                    publishedAt: new Date().toISOString(),
+                    title: 'Alzheimers Drug Approvals Signal New Era in Neurodegenerative Treatment',
+                    description: 'Recent FDA approvals of disease-modifying therapies for Alzheimers disease mark potential paradigm shift in neurology.',
+                    url: 'https://www.biopharmadive.com'
+                },
+                {
+                    source: { name: 'STAT News' },
+                    publishedAt: new Date().toISOString(),
+                    title: 'Biotech IPO Market Shows Signs of Recovery After Multi-Year Slump',
+                    description: 'Initial public offerings from biotech companies increase as investor confidence returns to the sector.',
+                    url: 'https://www.statnews.com'
+                },
+                {
+                    source: { name: 'Nature Biotechnology' },
+                    publishedAt: new Date().toISOString(),
+                    title: 'Precision Oncology Advances with Liquid Biopsy Technologies',
+                    description: 'New blood-based diagnostic tools enable earlier cancer detection and real-time treatment monitoring.',
+                    url: 'https://www.nature.com/nbt/'
+                },
+                {
+                    source: { name: 'FierceBiotech' },
+                    publishedAt: new Date().toISOString(),
+                    title: 'Regulatory Agencies Streamline Approval Processes for Breakthrough Therapies',
+                    description: 'FDA and EMA announce initiatives to accelerate development timelines for treatments addressing unmet medical needs.',
+                    url: 'https://www.fiercebiotech.com'
+                }
+            ];
+            displayNews(demoArticles);
+        }
+
+        function displayNews(articles) {
+            const newsContainer = document.getElementById('newsContainer');
+            newsContainer.innerHTML = '';
+
+            articles.forEach(article => {
+                const newsItem = document.createElement('div');
+                newsItem.className = 'news-item';
+                newsItem.innerHTML = `
+                    <div class="news-meta">${article.source.name.toUpperCase()} • ${new Date(article.publishedAt).toLocaleDateString().toUpperCase()}</div>
+                    <div class="news-title"><a href="${article.url}" target="_blank" rel="noopener noreferrer">${article.title}</a></div>
+                    <div class="news-description">${article.description || 'No description available.'}</div>
+                `;
+                newsContainer.appendChild(newsItem);
+            });
+        }
+
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+        function formatPrice(price) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'decimal',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(price);
+        }
+
+        // ============================================
+        // ECONOMIC CALENDAR
+        // ============================================
+        function loadEconomicCalendar() {
+            const calendarContainer = document.getElementById('calendarContainer');
+
+            // Sample upcoming events (in production, fetch from API)
+            const events = [
+                {
+                    date: '2026-01-15',
+                    title: 'FDA PDUFA Date: Amgen Drug Candidate',
+                    description: 'Expected FDA decision on new cardiovascular indication for existing therapy.',
+                    type: 'fda'
+                },
+                {
+                    date: '2026-01-22',
+                    title: 'Amgen Q4 Earnings Report',
+                    description: 'Fourth quarter 2025 financial results and 2026 guidance announcement.',
+                    type: 'earnings'
+                },
+                {
+                    date: '2026-01-29',
+                    title: 'Federal Reserve Interest Rate Decision',
+                    description: 'FOMC meeting decision on federal funds rate, impacts capital costs.',
+                    type: 'economic'
+                },
+                {
+                    date: '2026-02-05',
+                    title: 'FDA Advisory Committee: Biosimilar Review',
+                    description: 'Committee meeting to review biosimilar application in oncology space.',
+                    type: 'fda'
+                },
+                {
+                    date: '2026-02-12',
+                    title: 'CMS Drug Pricing Announcement',
+                    description: 'Medicare negotiated drug pricing list expected to be released.',
+                    type: 'economic'
+                },
+                {
+                    date: '2026-02-20',
+                    title: 'Phase 3 Trial Results: Competitor',
+                    description: 'Major biotech competitor announcing pivotal trial data for rare disease therapy.',
+                    type: 'fda'
+                }
+            ];
+
+            calendarContainer.innerHTML = '';
+            events.forEach(event => {
+                const eventDate = new Date(event.date);
+                const eventEl = document.createElement('div');
+                eventEl.className = 'calendar-event';
+                eventEl.innerHTML = `
+                    <div class="event-date">${eventDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()}</div>
+                    <div class="event-title">${event.title}</div>
+                    <div class="event-description">${event.description}</div>
+                    <span class="event-type event-${event.type}">${event.type.toUpperCase()}</span>
+                `;
+                calendarContainer.appendChild(eventEl);
+            });
+        }
+
+        // ============================================
+        // RISK METRICS
+        // ============================================
+        function loadRiskMetrics() {
+            const riskContainer = document.getElementById('riskMetrics');
+
+            // Calculate risk metrics from market data
+            const dataArray = Object.values(marketData);
+            if (dataArray.length === 0) return;
+
+            // Volatility (standard deviation of returns)
+            const volatility = calculateVolatility(dataArray);
+
+            // Beta (using S&P 500 as benchmark)
+            const beta = marketData.amgen && marketData.sp500 ?
+                (marketData.amgen.changePercent / marketData.sp500.changePercent).toFixed(2) : 'N/A';
+
+            // Value at Risk (95% confidence)
+            const var95 = (volatility * 1.645).toFixed(2);
+
+            // Sharpe Ratio (simplified - assuming risk-free rate of 4%)
+            const avgReturn = dataArray.reduce((sum, m) => sum + m.changePercent, 0) / dataArray.length;
+            const sharpeRatio = ((avgReturn - 0.01) / volatility).toFixed(2);
+
+            // Maximum Drawdown
+            const maxDrawdown = Math.min(...dataArray.map(m => m.changePercent)).toFixed(2);
+
+            riskContainer.innerHTML = `
+                <div class="risk-card">
+                    <div class="risk-label">Portfolio Volatility</div>
+                    <div class="risk-value">${(volatility * 100).toFixed(2)}%</div>
+                    <div class="risk-description">Standard deviation of returns across tracked securities</div>
+                </div>
+                <div class="risk-card">
+                    <div class="risk-label">Amgen Beta</div>
+                    <div class="risk-value">${beta}</div>
+                    <div class="risk-description">Sensitivity to S&P 500 movements (1.0 = market average)</div>
+                </div>
+                <div class="risk-card">
+                    <div class="risk-label">Value at Risk (95%)</div>
+                    <div class="risk-value">${var95}%</div>
+                    <div class="risk-description">Maximum expected loss at 95% confidence level</div>
+                </div>
+                <div class="risk-card">
+                    <div class="risk-label">Sharpe Ratio</div>
+                    <div class="risk-value">${sharpeRatio}</div>
+                    <div class="risk-description">Risk-adjusted return (higher is better)</div>
+                </div>
+                <div class="risk-card">
+                    <div class="risk-label">Max Drawdown</div>
+                    <div class="risk-value" style="color: #ff4757;">${maxDrawdown}%</div>
+                    <div class="risk-description">Largest single-day decline in tracked portfolio</div>
+                </div>
+            `;
+        }
+
+        function calculateVolatility(dataArray) {
+            const returns = dataArray.map(m => m.changePercent / 100);
+            const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+            const variance = returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / returns.length;
+            return Math.sqrt(variance);
+        }
+
+        // ============================================
+        // SCENARIO ANALYSIS
+        // ============================================
+        function runScenario() {
+            const variable = document.getElementById('scenarioVariable').value;
+            const changePercent = parseFloat(document.getElementById('scenarioPercent').value);
+            const correlation = parseFloat(document.getElementById('scenarioCorrelation').value);
+
+            const resultsDiv = document.getElementById('scenarioResults');
+            resultsDiv.style.display = 'block';
+
+            // Get current Amgen price
+            const amgenPrice = marketData.amgen ? marketData.amgen.price : 287.45;
+
+            // Calculate impact
+            const priceImpact = (changePercent * correlation / 100) * amgenPrice;
+            const newPrice = amgenPrice + priceImpact;
+            const portfolioImpact = priceImpact * 1000; // Assuming 1000 shares for example
+
+            // Get variable name
+            const variableNames = {
+                'oil': 'Oil Prices',
+                'biotech': 'Biotech Index',
+                'interest': 'Interest Rates',
+                'usd': 'USD Strength'
+            };
+
+            resultsDiv.innerHTML = `
+                <h4 style="color: #00d9ff; margin-bottom: 15px;">Scenario Results</h4>
+                <div class="scenario-result-item">
+                    <span style="color: #8b92a8;">Market Variable:</span>
+                    <span style="color: #e0e6ed; font-weight: 600;">${variableNames[variable]}</span>
+                </div>
+                <div class="scenario-result-item">
+                    <span style="color: #8b92a8;">Change Applied:</span>
+                    <span style="color: ${changePercent >= 0 ? '#00ff88' : '#ff4757'}; font-weight: 600;">
+                        ${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(1)}%
+                    </span>
+                </div>
+                <div class="scenario-result-item">
+                    <span style="color: #8b92a8;">Correlation to Amgen:</span>
+                    <span style="color: #e0e6ed; font-weight: 600;">${correlation.toFixed(2)}</span>
+                </div>
+                <div class="scenario-result-item">
+                    <span style="color: #8b92a8;">Current Amgen Price:</span>
+                    <span style="color: #e0e6ed; font-weight: 600;">$${formatPrice(amgenPrice)}</span>
+                </div>
+                <div class="scenario-result-item">
+                    <span style="color: #8b92a8;">Projected Price Impact:</span>
+                    <span style="color: ${priceImpact >= 0 ? '#00ff88' : '#ff4757'}; font-weight: 600;">
+                        ${priceImpact >= 0 ? '+' : ''}$${formatPrice(Math.abs(priceImpact))}
+                    </span>
+                </div>
+                <div class="scenario-result-item">
+                    <span style="color: #8b92a8;">Projected New Price:</span>
+                    <span style="color: #00d9ff; font-weight: 600; font-size: 1.2em;">$${formatPrice(newPrice)}</span>
+                </div>
+                <div class="scenario-result-item">
+                    <span style="color: #8b92a8;">Impact on 1000 Shares:</span>
+                    <span style="color: ${portfolioImpact >= 0 ? '#00ff88' : '#ff4757'}; font-weight: 600; font-size: 1.2em;">
+                        ${portfolioImpact >= 0 ? '+' : ''}$${formatPrice(Math.abs(portfolioImpact))}
+                    </span>
+                </div>
+            `;
+        }
+
+        // ============================================
+        // TECHNICAL INDICATORS
+        // ============================================
+        function toggleIndicator(indicator) {
+            const btn = document.getElementById(`${indicator}Btn`);
+
+            if (activeIndicators.has(indicator)) {
+                activeIndicators.delete(indicator);
+                btn.classList.remove('active');
+            } else {
+                activeIndicators.add(indicator);
+                btn.classList.add('active');
+            }
+
+            // Redraw chart with indicators
+            if (currentChartData && currentDetailSymbol) {
+                createDetailChart(currentChartData);
+            }
+        }
+
+        function calculateSMA(data, period) {
+            const sma = [];
+            for (let i = 0; i < data.length; i++) {
+                if (i < period - 1) {
+                    sma.push(null);
+                } else {
+                    const sum = data.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0);
+                    sma.push(sum / period);
+                }
+            }
+            return sma;
+        }
+
+        function calculateEMA(data, period) {
+            const k = 2 / (period + 1);
+            const ema = [data[0]];
+
+            for (let i = 1; i < data.length; i++) {
+                ema.push(data[i] * k + ema[i - 1] * (1 - k));
+            }
+            return ema;
+        }
+
+        function calculateBollingerBands(data, period = 20, stdDev = 2) {
+            const sma = calculateSMA(data, period);
+            const upper = [];
+            const lower = [];
+
+            for (let i = 0; i < data.length; i++) {
+                if (i < period - 1) {
+                    upper.push(null);
+                    lower.push(null);
+                } else {
+                    const slice = data.slice(i - period + 1, i + 1);
+                    const mean = sma[i];
+                    const variance = slice.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / period;
+                    const std = Math.sqrt(variance);
+                    upper.push(mean + stdDev * std);
+                    lower.push(mean - stdDev * std);
+                }
+            }
+            return { sma, upper, lower };
+        }
+
+        // ============================================
+        // EXPORT FUNCTIONS
+        // ============================================
+        function exportChartImage() {
+            if (!detailChart) {
+                alert('No chart to export. Please open a detail view first.');
+                return;
+            }
+
+            const canvas = document.getElementById('detailChartCanvas');
+            const url = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = `${MARKETS[currentDetailSymbol].name}_chart_${new Date().toISOString().split('T')[0]}.png`;
+            link.href = url;
+            link.click();
+        }
+
+        function exportCSV() {
+            if (!currentChartData) {
+                alert('No data to export. Please open a detail view first.');
+                return;
+            }
+
+            let csv = 'Timestamp,Date,Time,Open,High,Low,Close,Volume\n';
+            for (let i = 0; i < currentChartData.t.length; i++) {
+                const date = new Date(currentChartData.t[i] * 1000);
+                csv += `${currentChartData.t[i]},${date.toLocaleDateString()},${date.toLocaleTimeString()},`;
+                csv += `${currentChartData.o[i]},${currentChartData.h[i]},${currentChartData.l[i]},${currentChartData.c[i]},${currentChartData.v[i] || 'N/A'}\n`;
+            }
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = `${MARKETS[currentDetailSymbol].name}_data_${new Date().toISOString().split('T')[0]}.csv`;
+            link.href = url;
+            link.click();
+        }
+
+        function exportPDF() {
+            alert('PDF export functionality requires a PDF library (jsPDF). This would generate a comprehensive report with charts, statistics, and analysis. Click OK to download chart as image instead.');
+            exportChartImage();
+        }
+
+        // ============================================
+        // VOLUME CHART
+        // ============================================
+        function createVolumeChart(data) {
+            const canvas = document.getElementById('volumeChart');
+            if (!canvas || !data.v) return;
+
+            const ctx = canvas.getContext('2d');
+
+            if (volumeChart) {
+                volumeChart.destroy();
+            }
+
+            const labels = data.t.map((timestamp, i) => {
+                const date = new Date(timestamp * 1000);
+                if (currentTimePeriod === '1D' || currentTimePeriod === '5D') {
+                    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                } else {
+                    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+                }
+            });
+
+            // Color bars based on price movement
+            const colors = data.c.map((close, i) => {
+                if (i === 0) return '#00d9ff';
+                return close >= data.c[i-1] ? 'rgba(0, 255, 136, 0.6)' : 'rgba(255, 71, 87, 0.6)';
+            });
+
+            volumeChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Volume',
+                        data: data.v,
+                        backgroundColor: colors,
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1a1f3a',
+                            titleColor: '#00d9ff',
+                            bodyColor: '#e0e6ed',
+                            borderColor: '#2d3561',
+                            borderWidth: 1,
+                            padding: 10,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Volume: ' + context.parsed.y.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: false
+                        },
+                        y: {
+                            grid: {
+                                color: '#2d3561',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#8b92a8',
+                                callback: function(value) {
+                                    return (value / 1000000).toFixed(1) + 'M';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ============================================
+        // INITIALIZE ON LOAD
+        // ============================================
+        window.onload = function() {
+            initializeDashboard();
+            setInterval(refreshDashboard, 300000); // Refresh every 5 minutes
+        };
+    </script>
+</body>
+</html>
