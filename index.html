@@ -1359,6 +1359,19 @@
         async function fetchBiotechNews() {
             const newsContainer = document.getElementById('newsContainer');
 
+            // Check if we have cached news from today
+            const cachedNews = localStorage.getItem('newsCache');
+            const cachedDate = localStorage.getItem('newsDate');
+            const today = new Date().toDateString();
+
+            if (cachedNews && cachedDate === today) {
+                console.log('Using cached news from today');
+                displayNews(JSON.parse(cachedNews));
+                return;
+            }
+
+            console.log('Fetching fresh news (daily update)');
+
             try {
                 const response = await fetch(
                     `https://newsapi.org/v2/everything?q=(biotech OR biotechnology OR pharmaceutical OR "drug development" OR FDA OR "clinical trial")&language=en&sortBy=publishedAt&pageSize=12&apiKey=${API_KEYS.newsapi}`
@@ -1375,15 +1388,26 @@
                 console.log('News API Data:', data);
 
                 if (data.articles && data.articles.length > 0) {
+                    // Cache the news
+                    localStorage.setItem('newsCache', JSON.stringify(data.articles));
+                    localStorage.setItem('newsDate', today);
                     displayNews(data.articles);
                 } else {
-                    console.warn('No articles in response, using demo news');
-                    displayDemoNews();
+                    console.warn('No articles in response, using cached or demo news');
+                    if (cachedNews) {
+                        displayNews(JSON.parse(cachedNews));
+                    } else {
+                        displayDemoNews();
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching news:', error);
-                console.log('Using demo news due to error');
-                displayDemoNews();
+                console.log('Using cached or demo news due to error');
+                if (cachedNews) {
+                    displayNews(JSON.parse(cachedNews));
+                } else {
+                    displayDemoNews();
+                }
             }
         }
 
@@ -1394,84 +1418,84 @@
                     publishedAt: new Date().toISOString(),
                     title: 'FDA Approves Novel Gene Therapy for Rare Disease Treatment',
                     description: 'The FDA has granted accelerated approval for a breakthrough gene therapy targeting a rare genetic disorder, marking significant progress in precision medicine.',
-                    url: 'https://www.biopharmadive.com'
+                    url: 'https://www.biopharmadive.com/news/fda-approvals/'
                 },
                 {
                     source: { name: 'FierceBiotech' },
                     publishedAt: new Date().toISOString(),
                     title: 'Major Pharma Companies Increase Investment in Obesity Drug Research',
                     description: 'Leading pharmaceutical firms announce expanded budgets for metabolic disease research following successful GLP-1 receptor agonist launches.',
-                    url: 'https://www.fiercebiotech.com'
+                    url: 'https://www.fiercebiotech.com/biotech/obesity'
                 },
                 {
                     source: { name: 'Endpoints News' },
                     publishedAt: new Date().toISOString(),
                     title: 'Biotech M&A Activity Reaches Record Levels in Q4 2025',
                     description: 'Merger and acquisition activity in the biotechnology sector hits new highs as larger firms seek innovative pipeline assets.',
-                    url: 'https://endpts.com'
+                    url: 'https://endpts.com/mergers-and-acquisitions/'
                 },
                 {
                     source: { name: 'Nature Biotechnology' },
                     publishedAt: new Date().toISOString(),
                     title: 'CRISPR Technology Advances with Improved Base Editing Precision',
                     description: 'Researchers announce breakthrough in gene editing accuracy, potentially reducing off-target effects in therapeutic applications.',
-                    url: 'https://www.nature.com/nbt/'
+                    url: 'https://www.nature.com/subjects/crispr'
                 },
                 {
                     source: { name: 'STAT News' },
                     publishedAt: new Date().toISOString(),
                     title: 'Biosimilars Market Expected to Exceed $100B by 2026',
                     description: 'Analysis predicts significant growth in biosimilar adoption as major biologic patents expire and healthcare systems seek cost savings.',
-                    url: 'https://www.statnews.com'
+                    url: 'https://www.statnews.com/topic/pharma/'
                 },
                 {
                     source: { name: 'BioPharma Dive' },
                     publishedAt: new Date().toISOString(),
                     title: 'AI-Powered Drug Discovery Platforms Secure Major Funding Rounds',
                     description: 'Artificial intelligence companies focused on pharmaceutical R&D attract significant investments from venture capital and big pharma partnerships.',
-                    url: 'https://www.biopharmadive.com'
+                    url: 'https://www.biopharmadive.com/news/artificial-intelligence/'
                 },
                 {
                     source: { name: 'FierceBiotech' },
                     publishedAt: new Date().toISOString(),
                     title: 'CAR-T Cell Therapy Shows Promise in Solid Tumor Treatment',
                     description: 'Next-generation cellular immunotherapy demonstrates encouraging results in clinical trials for previously untreatable solid tumors.',
-                    url: 'https://www.fiercebiotech.com'
+                    url: 'https://www.fiercebiotech.com/research/car-t'
                 },
                 {
                     source: { name: 'Endpoints News' },
                     publishedAt: new Date().toISOString(),
                     title: 'mRNA Technology Expands Beyond Vaccines into Cancer Treatment',
                     description: 'Companies pioneering mRNA platforms report promising early-stage results in oncology applications and personalized medicine.',
-                    url: 'https://endpts.com'
+                    url: 'https://endpts.com/rna/'
                 },
                 {
                     source: { name: 'BioPharma Dive' },
                     publishedAt: new Date().toISOString(),
                     title: 'Alzheimers Drug Approvals Signal New Era in Neurodegenerative Treatment',
                     description: 'Recent FDA approvals of disease-modifying therapies for Alzheimers disease mark potential paradigm shift in neurology.',
-                    url: 'https://www.biopharmadive.com'
+                    url: 'https://www.biopharmadive.com/news/alzheimers/'
                 },
                 {
                     source: { name: 'STAT News' },
                     publishedAt: new Date().toISOString(),
                     title: 'Biotech IPO Market Shows Signs of Recovery After Multi-Year Slump',
                     description: 'Initial public offerings from biotech companies increase as investor confidence returns to the sector.',
-                    url: 'https://www.statnews.com'
+                    url: 'https://www.statnews.com/topic/biotech/'
                 },
                 {
                     source: { name: 'Nature Biotechnology' },
                     publishedAt: new Date().toISOString(),
                     title: 'Precision Oncology Advances with Liquid Biopsy Technologies',
                     description: 'New blood-based diagnostic tools enable earlier cancer detection and real-time treatment monitoring.',
-                    url: 'https://www.nature.com/nbt/'
+                    url: 'https://www.nature.com/subjects/cancer-screening'
                 },
                 {
                     source: { name: 'FierceBiotech' },
                     publishedAt: new Date().toISOString(),
                     title: 'Regulatory Agencies Streamline Approval Processes for Breakthrough Therapies',
                     description: 'FDA and EMA announce initiatives to accelerate development timelines for treatments addressing unmet medical needs.',
-                    url: 'https://www.fiercebiotech.com'
+                    url: 'https://www.fiercebiotech.com/regulatory'
                 }
             ];
             displayNews(demoArticles);
