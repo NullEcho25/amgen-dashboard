@@ -968,6 +968,19 @@
         // HISTORICAL DATA FOR RISK METRICS
         // ============================================
         async function fetchHistoricalDataForRisk() {
+            // Check if we have cached data from today
+            const cachedData = localStorage.getItem('riskDataCache');
+            const cachedDate = localStorage.getItem('riskDataDate');
+            const today = new Date().toDateString();
+
+            if (cachedData && cachedDate === today) {
+                console.log('Using cached historical risk data from today');
+                historicalRiskData = JSON.parse(cachedData);
+                return;
+            }
+
+            console.log('Fetching fresh historical data (daily update)');
+
             // Fetch 90 days of daily data for Amgen and S&P 500
             const to = Math.floor(Date.now() / 1000);
             const from = to - (90 * 24 * 60 * 60); // 90 days ago
@@ -985,14 +998,33 @@
                         amgen: amgenData,
                         sp500: sp500Data
                     };
-                    console.log('Historical risk data loaded:', amgenData.c.length, 'days');
+
+                    // Cache the data
+                    localStorage.setItem('riskDataCache', JSON.stringify(historicalRiskData));
+                    localStorage.setItem('riskDataDate', today);
+
+                    console.log('Historical risk data loaded and cached:', amgenData.c.length, 'days');
                 } else {
                     console.error('Failed to fetch historical risk data. Amgen status:', amgenData.s, 'SP500 status:', sp500Data.s);
-                    historicalRiskData.error = true;
+
+                    // Try to use old cached data if available
+                    if (cachedData) {
+                        console.log('Using old cached data as fallback');
+                        historicalRiskData = JSON.parse(cachedData);
+                    } else {
+                        historicalRiskData.error = true;
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching historical risk data:', error);
-                historicalRiskData.error = true;
+
+                // Try to use old cached data if available
+                if (cachedData) {
+                    console.log('Using old cached data as fallback due to error');
+                    historicalRiskData = JSON.parse(cachedData);
+                } else {
+                    historicalRiskData.error = true;
+                }
             }
         }
 
@@ -1541,7 +1573,7 @@
 
             // Check if we have historical data
             if (historicalRiskData.error) {
-                riskContainer.innerHTML = '<div class="error">Unable to load risk analytics. API rate limit may have been reached. Try refreshing in a few minutes.</div>';
+                riskContainer.innerHTML = '<div class="error">Unable to load risk analytics. Finnhub API rate limit reached (60 calls/min). Wait a few minutes, then click REFRESH DATA to try again.</div>';
                 return;
             }
 
