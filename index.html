@@ -800,6 +800,7 @@
         let marketData = {}; // Store market data
         let currentChartData = null; // Store current chart data for indicators
         let activeIndicators = new Set(); // Track active indicators
+        let historicalRiskData = {}; // Store historical data for risk calculations
 
         // ============================================
         // INITIALIZATION
@@ -838,6 +839,7 @@
         async function refreshDashboard() {
             updateTimestamp();
             await fetchAllMarketData();
+            await fetchHistoricalDataForRisk();
             loadRiskMetrics(); // Load risk metrics after market data is fetched
             fetchBiotechNews();
             loadEconomicCalendar();
@@ -960,6 +962,34 @@
                     interaction: { mode: null }
                 }
             });
+        }
+
+        // ============================================
+        // HISTORICAL DATA FOR RISK METRICS
+        // ============================================
+        async function fetchHistoricalDataForRisk() {
+            // Fetch 90 days of daily data for Amgen and S&P 500
+            const to = Math.floor(Date.now() / 1000);
+            const from = to - (90 * 24 * 60 * 60); // 90 days ago
+
+            try {
+                const [amgenData, sp500Data] = await Promise.all([
+                    fetch(`https://finnhub.io/api/v1/stock/candle?symbol=AMGN&resolution=D&from=${from}&to=${to}&token=${API_KEYS.finnhub}`).then(r => r.json()),
+                    fetch(`https://finnhub.io/api/v1/stock/candle?symbol=SPY&resolution=D&from=${from}&to=${to}&token=${API_KEYS.finnhub}`).then(r => r.json())
+                ]);
+
+                if (amgenData.s === 'ok' && sp500Data.s === 'ok') {
+                    historicalRiskData = {
+                        amgen: amgenData,
+                        sp500: sp500Data
+                    };
+                    console.log('Historical risk data loaded:', amgenData.c.length, 'days');
+                } else {
+                    console.error('Failed to fetch historical risk data');
+                }
+            } catch (error) {
+                console.error('Error fetching historical risk data:', error);
+            }
         }
 
         // ============================================
@@ -1505,32 +1535,38 @@
         function loadRiskMetrics() {
             const riskContainer = document.getElementById('riskMetrics');
 
-            // Calculate risk metrics from market data
-            const dataArray = Object.values(marketData);
-            if (dataArray.length === 0) return;
+            // Check if we have historical data
+            if (!historicalRiskData.amgen || !historicalRiskData.sp500) {
+                riskContainer.innerHTML = '<div class="loading">Loading risk analytics...</div>';
+                return;
+            }
 
-            // Volatility (standard deviation of returns)
-            const volatility = calculateVolatility(dataArray);
+            // Calculate daily returns for Amgen and S&P 500
+            const amgenReturns = calculateDailyReturns(historicalRiskData.amgen.c);
+            const sp500Returns = calculateDailyReturns(historicalRiskData.sp500.c);
 
-            // Beta (using S&P 500 as benchmark)
-            const beta = marketData.amgen && marketData.sp500 ?
-                (marketData.amgen.changePercent / marketData.sp500.changePercent).toFixed(2) : 'N/A';
+            // Calculate Beta (covariance / variance)
+            const beta = calculateBeta(amgenReturns, sp500Returns);
 
-            // Value at Risk (95% confidence)
+            // Calculate Amgen volatility (annualized)
+            const volatility = calculateHistoricalVolatility(amgenReturns);
+
+            // Value at Risk (95% confidence) - based on historical volatility
             const var95 = (volatility * 1.645).toFixed(2);
 
-            // Sharpe Ratio (simplified - assuming risk-free rate of 4%)
-            const avgReturn = dataArray.reduce((sum, m) => sum + m.changePercent, 0) / dataArray.length;
-            const sharpeRatio = ((avgReturn - 0.01) / volatility).toFixed(2);
+            // Sharpe Ratio (annualized - assuming risk-free rate of 4%)
+            const avgReturn = amgenReturns.reduce((sum, r) => sum + r, 0) / amgenReturns.length;
+            const annualizedReturn = avgReturn * 252; // 252 trading days
+            const sharpeRatio = ((annualizedReturn - 0.04) / volatility).toFixed(2);
 
-            // Maximum Drawdown
-            const maxDrawdown = Math.min(...dataArray.map(m => m.changePercent)).toFixed(2);
+            // Maximum Drawdown (from historical prices)
+            const maxDrawdown = calculateMaxDrawdown(historicalRiskData.amgen.c);
 
             riskContainer.innerHTML = `
                 <div class="risk-card">
-                    <div class="risk-label">Portfolio Volatility</div>
+                    <div class="risk-label">Amgen Volatility (Annual)</div>
                     <div class="risk-value">${(volatility * 100).toFixed(2)}%</div>
-                    <div class="risk-description">Standard deviation of returns across tracked securities</div>
+                    <div class="risk-description">Annualized standard deviation based on 90-day history</div>
                 </div>
                 <div class="risk-card">
                     <div class="risk-label">Amgen Beta</div>
@@ -1540,26 +1576,80 @@
                 <div class="risk-card">
                     <div class="risk-label">Value at Risk (95%)</div>
                     <div class="risk-value">${var95}%</div>
-                    <div class="risk-description">Maximum expected loss at 95% confidence level</div>
+                    <div class="risk-description">Maximum expected annual loss at 95% confidence level</div>
                 </div>
                 <div class="risk-card">
                     <div class="risk-label">Sharpe Ratio</div>
                     <div class="risk-value">${sharpeRatio}</div>
-                    <div class="risk-description">Risk-adjusted return (higher is better)</div>
+                    <div class="risk-description">Risk-adjusted return (higher is better, >1 is good)</div>
                 </div>
                 <div class="risk-card">
-                    <div class="risk-label">Max Drawdown</div>
+                    <div class="risk-label">Max Drawdown (90d)</div>
                     <div class="risk-value" style="color: #ff4757;">${maxDrawdown}%</div>
-                    <div class="risk-description">Largest single-day decline in tracked portfolio</div>
+                    <div class="risk-description">Largest peak-to-trough decline in past 90 days</div>
                 </div>
             `;
         }
 
-        function calculateVolatility(dataArray) {
-            const returns = dataArray.map(m => m.changePercent / 100);
+        function calculateDailyReturns(prices) {
+            const returns = [];
+            for (let i = 1; i < prices.length; i++) {
+                returns.push((prices[i] - prices[i-1]) / prices[i-1]);
+            }
+            return returns;
+        }
+
+        function calculateBeta(assetReturns, marketReturns) {
+            // Ensure arrays are same length
+            const minLength = Math.min(assetReturns.length, marketReturns.length);
+            const asset = assetReturns.slice(0, minLength);
+            const market = marketReturns.slice(0, minLength);
+
+            // Calculate means
+            const assetMean = asset.reduce((sum, r) => sum + r, 0) / asset.length;
+            const marketMean = market.reduce((sum, r) => sum + r, 0) / market.length;
+
+            // Calculate covariance and variance
+            let covariance = 0;
+            let marketVariance = 0;
+
+            for (let i = 0; i < asset.length; i++) {
+                covariance += (asset[i] - assetMean) * (market[i] - marketMean);
+                marketVariance += Math.pow(market[i] - marketMean, 2);
+            }
+
+            covariance /= asset.length;
+            marketVariance /= market.length;
+
+            const beta = covariance / marketVariance;
+            return beta.toFixed(2);
+        }
+
+        function calculateHistoricalVolatility(returns) {
+            // Calculate standard deviation
             const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
             const variance = returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / returns.length;
-            return Math.sqrt(variance);
+            const stdDev = Math.sqrt(variance);
+
+            // Annualize (multiply by sqrt of 252 trading days)
+            return stdDev * Math.sqrt(252);
+        }
+
+        function calculateMaxDrawdown(prices) {
+            let maxDrawdown = 0;
+            let peak = prices[0];
+
+            for (let i = 1; i < prices.length; i++) {
+                if (prices[i] > peak) {
+                    peak = prices[i];
+                }
+                const drawdown = (prices[i] - peak) / peak;
+                if (drawdown < maxDrawdown) {
+                    maxDrawdown = drawdown;
+                }
+            }
+
+            return (maxDrawdown * 100).toFixed(2);
         }
 
         // ============================================
