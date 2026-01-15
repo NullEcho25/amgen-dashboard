@@ -835,12 +835,12 @@
             document.getElementById('lastUpdate').textContent = now.toLocaleString().toUpperCase();
         }
 
-        function refreshDashboard() {
+        async function refreshDashboard() {
             updateTimestamp();
-            fetchAllMarketData();
+            await fetchAllMarketData();
+            loadRiskMetrics(); // Load risk metrics after market data is fetched
             fetchBiotechNews();
             loadEconomicCalendar();
-            loadRiskMetrics();
         }
 
         // ============================================
